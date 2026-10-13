@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Roboto+Slab:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #9E2024;
+    --gray: #5F6466;
+    --ink: #1F2223;
+    --muted: #8A8F91;
+    --rule: #E3E5E6;
+    --track: #F3F4F4;
+    --bg: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); overflow-x: hidden; }
+  body {
+    font-family: "Roboto Slab", Rockwell, Georgia, serif;
+    font-synthesis: none;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .chart { width: 100%; max-width: 600px; margin: 0 auto; padding: 16px 0 12px; }
+
+  .hero .num, .block h2 { font-family: "Alfa Slab One", Rockwell, Georgia, serif; font-weight: 400; }
+  .hero { text-align: center; padding: 8px 0 26px; }
+  .hero .num { font-size: 72px; line-height: 1; color: var(--red); font-variant-numeric: tabular-nums; }
+  .hero .txt { font-size: 16px; line-height: 1.4; color: var(--gray); max-width: 420px; margin: 10px auto 0; }
+
+  .block { margin-bottom: 26px; }
+  .block h2 { font-size: 16px; line-height: 1.35; margin: 0 0 10px; color: var(--ink); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--gray); margin: 0 0 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+
+  .row { margin-bottom: 14px; }
+  .row .q { font-size: 14px; line-height: 1.4; margin: 0 0 5px; color: var(--ink); }
+  .bar { display: flex; gap: 2px; height: 30px; }
+  .seg {
+    position: relative; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
+    cursor: default; transition: opacity .12s;
+  }
+  .seg:first-child { border-radius: 4px 0 0 4px; }
+  .seg:last-child { border-radius: 0 4px 4px 0; }
+  .bar:hover .seg { opacity: .55; }
+  .bar .seg:hover, .bar .seg.on { opacity: 1; }
+
+  /* scelta multipla: una barra per opzione, scala 0-100% */
+  .opt { margin-bottom: 10px; cursor: default; }
+  .opt .q { font-size: 14px; line-height: 1.35; margin: 0 0 4px; }
+  .opt .line { display: flex; align-items: center; gap: 8px; }
+  .opt .track { flex: 1; height: 18px; background: var(--track); border-radius: 0 4px 4px 0; position: relative; }
+  .opt .fill { height: 100%; background: var(--red); border-radius: 0 4px 4px 0; transition: opacity .12s; }
+  .opt.other .fill { background: var(--muted); }
+  .opt .v { width: 40px; text-align: right; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); flex: none; }
+  .opts:hover .opt .fill { opacity: .55; }
+  .opts .opt:hover .fill { opacity: 1; }
+
+  .note { font-size: 11px; line-height: 1.5; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; margin: 4px 0 0; }
+
+  .tip {
+    position: absolute; pointer-events: none; z-index: 10;
+    background: var(--ink); color: #fff; font-size: 12px; line-height: 1.4;
+    padding: 7px 9px; border-radius: 4px; max-width: 240px;
+    opacity: 0; transition: opacity .1s;
+  }
+
+  .sr { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+
+  @media (max-width: 420px) {
+    .hero .num { font-size: 56px; }
+    .hero .txt { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="chart" id="chart"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+// Solo percentuali aggregate: nessun conteggio, nessuna risposta individuale.
+const SPEC = {{SPEC}};
+
+const fmt = v => Math.round(v).toLocaleString("it-IT") + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const chart = document.getElementById("chart");
+const tip = document.getElementById("tip");
+
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let x = e.pageX + 12, y = e.pageY - r.height - 10;
+  if (x + r.width > document.documentElement.clientWidth - 4) x = e.pageX - r.width - 12;
+  if (x < 4) x = 4;
+  if (y < window.scrollY + 4) y = e.pageY + 16;
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+function bindTip(el, html, group, cls) {
+  el.addEventListener("mousemove", e => showTip(e, html));
+  el.addEventListener("mouseleave", hideTip);
+  el.addEventListener("touchstart", e => {
+    group.querySelectorAll("." + cls).forEach(s => s.classList.remove("on"));
+    el.classList.add("on");
+    showTip(e.touches[0], html);
+  }, { passive: true });
+}
+document.addEventListener("touchstart", e => { if (!e.target.closest(".seg, .opt")) hideTip(); }, { passive: true });
+
+const srRows = [];
+
+function hero(b) {
+  chart.insertAdjacentHTML("beforeend",
+    `<div class="hero"><div class="num">${fmt(b.p)}</div><p class="txt">${esc(b.text)}</p></div>`);
+}
+
+function stack(b) {
+  const block = document.createElement("div");
+  block.className = "block";
+  block.innerHTML = `<h2>${esc(b.title)}</h2><div class="legend">${
+    b.legend.map(l => `<span><i style="background:${l.color}"></i>${esc(l.key)}</span>`).join("")}</div>`;
+  b.rows.forEach(row => {
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    if (row.q) wrap.insertAdjacentHTML("beforeend", `<p class="q">${esc(row.q)}</p>`);
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    row.p.forEach((p, i) => {
+      if (!p) return;
+      const l = b.legend[i];
+      const seg = document.createElement("div");
+      seg.className = "seg";
+      seg.style.flex = `${p} 0 0`;
+      seg.style.background = l.color;
+      seg.style.color = l.ink;
+      if (p >= 8) seg.textContent = fmt(p);
+      bindTip(seg, `${esc(l.key)}: ${fmt(p)}`, bar, "seg");
+      bar.appendChild(seg);
+    });
+    wrap.appendChild(bar);
+    block.appendChild(wrap);
+    srRows.push([row.q || b.title, b.legend.map((l, i) => `${l.key} ${fmt(row.p[i])}`).join(", ")]);
+  });
+  chart.appendChild(block);
+}
+
+function options(b) {
+  const block = document.createElement("div");
+  block.className = "block";
+  block.innerHTML = `<h2>${esc(b.title)}</h2>`;
+  const box = document.createElement("div");
+  box.className = "opts";
+  b.items.forEach(it => {
+    const o = document.createElement("div");
+    o.className = "opt" + (it.label === "Altro" ? " other" : "");
+    o.innerHTML = `<p class="q">${esc(it.label)}</p><div class="line"><div class="track"><div class="fill" style="width:${it.p}%"></div></div><span class="v">${fmt(it.p)}</span></div>`;
+    bindTip(o, `${esc(it.label)}: ${fmt(it.p)}`, box, "opt");
+    box.appendChild(o);
+    srRows.push([`${b.title}: ${it.label}`, fmt(it.p)]);
+  });
+  block.appendChild(box);
+  chart.appendChild(block);
+}
+
+SPEC.blocks.forEach(b => ({ hero, stack, options })[b.type](b));
+chart.insertAdjacentHTML("beforeend", `<p class="note">${esc(SPEC.note)}</p>`);
+
+// Tabella per screen reader
+chart.insertAdjacentHTML("beforeend", `<div class="sr"><table><caption>Dati del grafico</caption>${
+  srRows.map(r => `<tr><th>${esc(r[0])}</th><td>${esc(r[1])}</td></tr>`).join("")}</table></div>`);
+
+// Altezza automatica per l'iframe
+function postHeight() {
+  if (window.parent !== window) window.parent.postMessage({ type: "embed-height", height: chart.offsetHeight }, "*");
+}
+window.addEventListener("load", postHeight);
+window.addEventListener("resize", postHeight);
+if (document.fonts) document.fonts.ready.then(postHeight);
+</script>
+</body>
+</html>
