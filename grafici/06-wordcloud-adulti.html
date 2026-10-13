@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Se potessi dire agli adulti una cosa sulla vita online dei ragazzi, cosa vorresti che capissero?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Roboto+Slab:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3-cloud@1.2.7/build/d3.layout.cloud.js"></script>
+<style>
+  :root {
+    --red: #9E2024;
+    --gray: #5F6466;
+    --light: #A3A8AA;
+    --ink: #1F2223;
+    --muted: #8A8F91;
+    --rule: #E3E5E6;
+    --bg: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); overflow-x: hidden; }
+  body {
+    font-family: "Roboto Slab", Rockwell, Georgia, serif;
+    font-synthesis: none;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .chart { width: 100%; max-width: 600px; margin: 0 auto; padding: 16px 0 12px; }
+  h2 { font-family: "Alfa Slab One", Rockwell, Georgia, serif; font-weight: 400; font-size: 18px; line-height: 1.35; margin: 0 0 6px; }
+  .sub { font-size: 14px; line-height: 1.4; color: var(--gray); margin: 0 0 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: "Roboto Slab", Rockwell, Georgia, serif; font-weight: 500; cursor: default; transition: opacity .12s; }
+  svg:hover text { opacity: .45; }
+  svg text:hover, svg text.on { opacity: 1; }
+  .note { font-size: 11px; line-height: 1.5; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; margin: 8px 0 0; }
+  .tip {
+    position: absolute; pointer-events: none; z-index: 10;
+    background: var(--ink); color: #fff; font-size: 12px; line-height: 1.4;
+    padding: 7px 9px; border-radius: 4px; max-width: 240px;
+    opacity: 0; transition: opacity .1s;
+  }
+  .sr { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="chart" id="chart">
+  <h2 id="title"></h2>
+  <p class="sub" id="sub"></p>
+  <svg id="cloud" viewBox="0 0 600 420" role="img"></svg>
+  <p class="note" id="note"></p>
+  <div class="sr"><ul id="sr-list"></ul></div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+// Per ogni parola: quota di risposte che la contengono (%). Nessuna risposta individuale.
+const SPEC = {
+ "title": "Se potessi dire agli adulti una cosa sulla vita online dei ragazzi, cosa vorresti che capissero?",
+ "sub": "Le parole più usate nelle risposte: più è grande, più spesso compare",
+ "words": [
+  {
+   "t": "social",
+   "p": 31.11
+  },
+  {
+   "t": "persone",
+   "p": 15.11
+  },
+  {
+   "t": "telefono",
+   "p": 15.11
+  },
+  {
+   "t": "online",
+   "p": 14.67
+  },
+  {
+   "t": "vita",
+   "p": 14.22
+  },
+  {
+   "t": "ragazzi",
+   "p": 12.44
+  },
+  {
+   "t": "amici",
+   "p": 6.22
+  },
+  {
+   "t": "genitori",
+   "p": 6.22
+  },
+  {
+   "t": "negativo",
+   "p": 6.22
+  },
+  {
+   "t": "mondo",
+   "p": 5.78
+  },
+  {
+   "t": "tempo",
+   "p": 5.78
+  },
+  {
+   "t": "stare",
+   "p": 5.33
+  },
+  {
+   "t": "internet",
+   "p": 4.89
+  },
+  {
+   "t": "bene",
+   "p": 4.44
+  },
+  {
+   "t": "male",
+   "p": 4.44
+  },
+  {
+   "t": "nulla",
+   "p": 4.44
+  },
+  {
+   "t": "reale",
+   "p": 4.44
+  },
+  {
+   "t": "amicizie",
+   "p": 4.0
+  },
+  {
+   "t": "giovani",
+   "p": 4.0
+  },
+  {
+   "t": "forza",
+   "p": 3.56
+  },
+  {
+   "t": "niente",
+   "p": 3.56
+  },
+  {
+   "t": "problemi",
+   "p": 3.56
+  },
+  {
+   "t": "realtà",
+   "p": 3.56
+  },
+  {
+   "t": "comunicazione",
+   "p": 3.11
+  },
+  {
+   "t": "imparare",
+   "p": 3.11
+  },
+  {
+   "t": "paura",
+   "p": 3.11
+  },
+  {
+   "t": "sentire",
+   "p": 3.11
+  },
+  {
+   "t": "usano",
+   "p": 3.11
+  },
+  {
+   "t": "vivere",
+   "p": 3.11
+  },
+  {
+   "t": "capiscono",
+   "p": 2.67
+  },
+  {
+   "t": "difficile",
+   "p": 2.67
+  },
+  {
+   "t": "facile",
+   "p": 2.67
+  },
+  {
+   "t": "giudicati",
+   "p": 2.67
+  },
+  {
+   "t": "importante",
+   "p": 2.67
+  },
+  {
+   "t": "meglio",
+   "p": 2.67
+  },
+  {
+   "t": "parlare",
+   "p": 2.67
+  },
+  {
+   "t": "passioni",
+   "p": 2.67
+  },
+  {
+   "t": "rischi",
+   "p": 2.67
+  },
+  {
+   "t": "schermo",
+   "p": 2.67
+  },
+  {
+   "t": "trovare",
+   "p": 2.67
+  },
+  {
+   "t": "usare",
+   "p": 2.67
+  },
+  {
+   "t": "vedere",
+   "p": 2.67
+  },
+  {
+   "t": "bisogno",
+   "p": 2.22
+  },
+  {
+   "t": "cellulare",
+   "p": 2.22
+  },
+  {
+   "t": "figli",
+   "p": 2.22
+  },
+  {
+   "t": "momento",
+   "p": 2.22
+  },
+  {
+   "t": "pensare",
+   "p": 2.22
+  },
+  {
+   "t": "perdere",
+   "p": 2.22
+  },
+  {
+   "t": "piccoli",
+   "p": 2.22
+  },
+  {
+   "t": "video",
+   "p": 2.22
+  },
+  {
+   "t": "adolescenti",
+   "p": 1.78
+  },
+  {
+   "t": "aiuta",
+   "p": 1.78
+  },
+  {
+   "t": "aiuto",
+   "p": 1.78
+  },
+  {
+   "t": "attenzione",
+   "p": 1.78
+  },
+  {
+   "t": "casa",
+   "p": 1.78
+  },
+  {
+   "t": "danno",
+   "p": 1.78
+  },
+  {
+   "t": "difficili",
+   "p": 1.78
+  },
+  {
+   "t": "generazione",
+   "p": 1.78
+  },
+  {
+   "t": "gente",
+   "p": 1.78
+  },
+  {
+   "t": "giorno",
+   "p": 1.78
+  },
+  {
+   "t": "grande",
+   "p": 1.78
+  },
+  {
+   "t": "mezzo",
+   "p": 1.78
+  },
+  {
+   "t": "rispetto",
+   "p": 1.78
+  },
+  {
+   "t": "sanno",
+   "p": 1.78
+  },
+  {
+   "t": "scrivere",
+   "p": 1.78
+  },
+  {
+   "t": "situazione",
+   "p": 1.78
+  },
+  {
+   "t": "situazioni",
+   "p": 1.78
+  },
+  {
+   "t": "strumento",
+   "p": 1.78
+  },
+  {
+   "t": "uso",
+   "p": 1.78
+  },
+  {
+   "t": "accesso",
+   "p": 1.33
+  }
+ ],
+ "note": "Fonte: questionario Connessioni fragili. Sono escluse articoli, preposizioni e altre parole d’uso comune, e le parole presenti in meno di tre risposte.",
+ "updated": "Dati aggiornati al 13 ottobre 2026, ore 17:49."
+};
+const W = 600, H = 420;
+
+const fmt = v => Math.round(v).toLocaleString("it-IT") + "%";
+document.getElementById("title").textContent = SPEC.title;
+document.getElementById("sub").textContent = SPEC.sub;
+document.getElementById("note").textContent = SPEC.note + (SPEC.updated ? " " + SPEC.updated : "");
+document.getElementById("cloud").setAttribute("aria-label", "Nuvola di parole: " + SPEC.words.slice(0, 15).map(w => w.t).join(", "));
+document.getElementById("sr-list").innerHTML = SPEC.words.map(w => `<li>${w.t}: ${fmt(w.p)} delle risposte</li>`).join("");
+
+const tip = document.getElementById("tip");
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let x = e.pageX + 12, y = e.pageY - r.height - 10;
+  if (x + r.width > document.documentElement.clientWidth - 4) x = e.pageX - r.width - 12;
+  if (x < 4) x = 4;
+  if (y < window.scrollY + 4) y = e.pageY + 16;
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+
+// Generatore pseudo-casuale con seme fisso: la disposizione è sempre la stessa
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function draw() {
+  const max = SPEC.words[0].p, min = SPEC.words[SPEC.words.length - 1].p;
+  const size = p => 13 + (52 - 13) * Math.sqrt((p - min) / (max - min || 1));
+  const color = i => i < 6 ? "var(--red)" : i < 24 ? "var(--gray)" : "var(--light)";
+  const words = SPEC.words.map((w, i) => ({ text: w.t, p: w.p, size: size(w.p), fill: color(i) }));
+
+  d3.layout.cloud()
+    .size([W, H])
+    .words(words)
+    .padding(3)
+    .rotate(0)
+    .font("Roboto Slab")
+    .fontWeight(500)
+    .fontSize(d => d.size)
+    .random(mulberry32(7))
+    .spiral("archimedean")
+    .on("end", placed => {
+      const svg = document.getElementById("cloud");
+      const NS = "http://www.w3.org/2000/svg";
+      const g = document.createElementNS(NS, "g");
+      g.setAttribute("transform", `translate(${W / 2},${H / 2})`);
+      placed.forEach(d => {
+        const t = document.createElementNS(NS, "text");
+        t.setAttribute("text-anchor", "middle");
+        t.setAttribute("transform", `translate(${d.x},${d.y})`);
+        t.setAttribute("font-size", d.size);
+        t.setAttribute("fill", d.fill);
+        t.textContent = d.text;
+        const html = `<b>${d.text}</b><br>compare nel ${fmt(d.p)} delle risposte`;
+        t.addEventListener("mousemove", e => showTip(e, html));
+        t.addEventListener("mouseleave", hideTip);
+        t.addEventListener("touchstart", e => {
+          svg.querySelectorAll("text").forEach(x => x.classList.remove("on"));
+          t.classList.add("on");
+          showTip(e.touches[0], html);
+        }, { passive: true });
+        g.appendChild(t);
+      });
+      svg.appendChild(g);
+      svg.dataset.placed = placed.length;
+      postHeight();
+    })
+    .start();
+}
+document.addEventListener("touchstart", e => { if (e.target.tagName !== "text") hideTip(); }, { passive: true });
+
+// Aspetta il font, altrimenti le misure delle parole sono sbagliate
+(document.fonts ? document.fonts.load('500 20px "Roboto Slab"').then(() => document.fonts.ready) : Promise.resolve()).then(draw, draw);
+
+function postHeight() {
+  const h = document.getElementById("chart").offsetHeight;
+  if (window.parent !== window) window.parent.postMessage({ type: "embed-height", height: h }, "*");
+}
+window.addEventListener("resize", postHeight);
+</script>
+</body>
+</html>
