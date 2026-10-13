@@ -61,7 +61,7 @@ const W = 600, H = 420;
 const fmt = v => Math.round(v).toLocaleString("it-IT") + "%";
 document.getElementById("title").textContent = SPEC.title;
 document.getElementById("sub").textContent = SPEC.sub;
-document.getElementById("note").textContent = SPEC.note;
+document.getElementById("note").textContent = SPEC.note + (SPEC.updated ? " " + SPEC.updated : "");
 document.getElementById("cloud").setAttribute("aria-label", "Nuvola di parole: " + SPEC.words.slice(0, 15).map(w => w.t).join(", "));
 document.getElementById("sr-list").innerHTML = SPEC.words.map(w => `<li>${w.t}: ${fmt(w.p)} delle risposte</li>`).join("");
 

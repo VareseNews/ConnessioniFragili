@@ -173,7 +173,7 @@ function options(b) {
 }
 
 SPEC.blocks.forEach(b => ({ hero, stack, options })[b.type](b));
-chart.insertAdjacentHTML("beforeend", `<p class="note">${esc(SPEC.note)}</p>`);
+chart.insertAdjacentHTML("beforeend", `<p class="note">${esc(SPEC.note)}${SPEC.updated ? " " + esc(SPEC.updated) : ""}</p>`);
 
 // Tabella per screen reader
 chart.insertAdjacentHTML("beforeend", `<div class="sr"><table><caption>Dati del grafico</caption>${

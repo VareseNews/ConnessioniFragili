@@ -2,14 +2,35 @@
 
 Uso: python3 -I gen.py <csv> <cartella_output>
 Nei file finisce solo la percentuale per ogni opzione, mai i conteggi.
+Un file viene riscritto solo se i dati sono cambiati: la data di aggiornamento
+indica quindi l'ultima volta in cui le percentuali si sono mosse.
 """
-import csv, json, sys, collections, pathlib
+import csv, json, re, sys, collections, pathlib
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 CSV, OUT = sys.argv[1], pathlib.Path(sys.argv[2])
 TEMPLATE = (pathlib.Path(__file__).parent / "template.html").read_text(encoding="utf-8")
 
 rows = list(csv.reader(open(CSV, encoding="utf-8")))
 H, DATA = rows[0], rows[1:]
+
+# Controllo di sicurezza: se le colonne del modulo cambiano posizione, meglio fermarsi
+# che pubblicare grafici sbagliati.
+EXPECT = {
+    5: "Quando sei online senti", 6: "filtri", 7: "Guardando ciò che altre", 8: "Quanto ti preoccupa il giudizio",
+    9: "Hai mai cancellato", 10: "controllare like", 11: "giudicato/a o escluso/a", 12: "litigio o conflitto",
+    13: "Quanto ti ha fatto stare male", 15: "subire prese in giro", 17: "Ne hai parlato con un adulto",
+    19: "vedere online insulti", 20: "come hai reagito", 21: "sentire meglio", 22: "sotto pressione",
+    23: "Conosci qualcuno", 24: "diffusi senza il tuo permesso", 25: "profilo falso", 26: "sapresti cosa fare",
+    27: "segnalare o denunciare", 28: "Cosa ti ha frenato", 29: "a chi ti capita di rivolgerti",
+    30: "rischi legati a internet", 31: "adulti di riferimento conoscono", 32: "a scuola",
+    33: "Dormire male", 34: "Andare a dormire più tardi", 35: "ansia o pressione", 36: "irritabile",
+    37: "giù di morale",
+}
+for i, frag in EXPECT.items():
+    if i >= len(H) or frag.lower() not in H[i].lower():
+        sys.exit(f"Colonna {i} inattesa: mi aspettavo '{frag}', trovo '{H[i] if i < len(H) else '(assente)'}'")
 
 NR = "Preferisco non rispondere"
 
@@ -20,15 +41,16 @@ DARK, WHITE = "#1F2223", "#FFFFFF"
 
 
 def col(i, where=None):
-    return [r[i].strip() for r in DATA if r[i].strip() and (where is None or where(r))]
+    return [r[i].strip() for r in DATA if len(r) > i and r[i].strip() and (where is None or where(r))]
 
 
 def pcts(vals, keys, merge=None):
     merge = merge or {}
     c = collections.Counter(merge.get(v, v) for v in vals)
     unknown = set(c) - set(keys)
-    assert not unknown, unknown
-    tot = sum(c.values())
+    if unknown:  # risposta mai vista: la segnalo e la escludo dal calcolo
+        print("  attenzione, risposte non previste escluse:", unknown, file=sys.stderr)
+    tot = sum(c[k] for k in keys)
     return [round(100 * c[k] / tot, 2) for k in keys]
 
 
@@ -79,11 +101,37 @@ def share(i, ok, where=None):
     return round(100 * sum(v in ok for v in vals) / len(vals), 2)
 
 
+MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
+        "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+_now = datetime.now(ZoneInfo("Europe/Rome"))
+UPDATED = f"Dati aggiornati al {_now.day} {MESI[_now.month - 1]} {_now.year}, ore {_now:%H:%M}."
+
+
+def old_spec(path):
+    try:
+        return json.loads(re.search(r"const SPEC = (\{.*?\});\n", path.read_text(encoding="utf-8"), re.S).group(1))
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
 def page(fname, title, blocks, note):
     spec = {"blocks": blocks, "note": note}
+    path = OUT / fname
+    prev = old_spec(path)
+    if prev and template_unchanged(path, title) and {k: v for k, v in prev.items() if k != "updated"} == spec:
+        print("invariato", fname)
+        return
+    spec["updated"] = UPDATED
     html = TEMPLATE.replace("{{TITLE}}", title).replace("{{SPEC}}", json.dumps(spec, ensure_ascii=False, indent=1))
-    (OUT / fname).write_text(html, encoding="utf-8")
+    path.write_text(html, encoding="utf-8")
     print("scritto", fname)
+
+
+def template_unchanged(path, title):
+    """Vero se il file è stato generato con il template attuale (a parte i dati)."""
+    current = re.sub(r"const SPEC = \{.*?\};\n", "", path.read_text(encoding="utf-8"), flags=re.S)
+    fresh = re.sub(r"const SPEC = \{\{SPEC\}\};\n", "", TEMPLATE.replace("{{TITLE}}", title))
+    return current == fresh
 
 
 NOTE = "Fonte: questionario Connessioni fragili. Percentuali su chi ha risposto alla singola domanda."
