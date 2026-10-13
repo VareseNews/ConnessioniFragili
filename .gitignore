@@ -1,0 +1,15 @@
+# Impostazioni locali di Claude Code
+.claude/
+
+# Dati grezzi del questionario: non vanno mai pubblicati
+*.csv
+*.xlsx
+*.xls
+
+# Chiave dell'account di servizio Google (va solo nei segreti di GitHub)
+*.json
+
+# File di sistema e Python
+.DS_Store
+__pycache__/
+*.pyc
